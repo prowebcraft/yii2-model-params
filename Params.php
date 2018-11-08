@@ -8,7 +8,6 @@
 
 namespace prowebcraft\yii2params;
 
-
 trait Params
 {
 
@@ -144,12 +143,28 @@ trait Params
     public function setParam($key, $value, $merge = false, $recursive = false)
     {
         $this->initParams();
-        if($merge && is_array($value) && isset($this->paramsArray[$key])) {
-            $currentValue = $this->paramsArray[$key];
+        $target = &$this->paramsArray;
+        if (is_string($key)) {
+            // Iterate path
+            $keys = explode('.', $key);
+            foreach ($keys as $key) {
+                if (!isset($target[$key]) || !is_array($target[$key])) {
+                    $target[$key] = [];
+                }
+                $target = &$target[$key];
+            }
+            // Set value to path
+        } elseif (is_array($key)) {
+            // Iterate array of paths and values
+            foreach ($key as $k => $v) {
+                $this->setParam($k, $v, $merge, $recursive);
+            }
+        }
+        if($merge && is_array($value)) {
             $function = $recursive ? 'array_replace_recursive' : 'array_replace';
-            $this->paramsArray[$key] = $function($currentValue, $value);
+            $target = $function($target, $value);
         } else {
-            $this->paramsArray[$key] = $value;
+            $target = $value;
         }
         $this->setAttribute('params', $this->getParamsAsJsonString());
         return $this;
