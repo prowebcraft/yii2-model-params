@@ -8,6 +8,8 @@
 
 namespace prowebcraft\yii2params;
 
+use function Webmozart\Assert\Tests\StaticAnalysis\string;
+
 trait Params
 {
 
@@ -37,21 +39,26 @@ trait Params
 
     function __set($name, $value)
     {
-        if($name == 'params') return $this->setParams($value);
-        return parent::__set($name, $value);
+        if ($name === 'params') {
+            return $this->setParams($value);
+        }
+        parent::__set($name, $value);
     }
 
     function __get($name)
     {
-        if($name == 'params') return $this->getParams();
+        if ($name === 'params') {
+            return $this->getParams();
+        }
         return parent::__get($name);
     }
 
     /**
      * Initialise params data
      */
-    protected function initParams() {
-        if($this->paramsArray === null) {
+    protected function initParams()
+    {
+        if ($this->paramsArray === null) {
             if (!empty($this->getAttribute('params'))) {
                 $this->paramsArray = json_decode($this->getAttribute('params'), true) ?: [];
             } else {
@@ -65,13 +72,16 @@ trait Params
      * @param bool $prettyPrint
      * @return null|string
      */
-    public function getParamsAsJsonString($prettyPrint = false) {
+    public function getParamsAsJsonString($prettyPrint = false)
+    {
         $this->initParams();
         $params = $this->paramsArray;
-        $flags = $prettyPrint ? JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE : JSON_UNESCAPED_UNICODE;
-        return (is_array($params) && !empty($params))
-            ? json_encode($params, $flags)
-            : ((is_string($params) && !empty($params)) ? $params : null);
+        $flags = $prettyPrint ? JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE : JSON_UNESCAPED_UNICODE;
+        if (empty($params)) {
+            return null;
+        }
+
+        return is_array($params) || is_object($params) ? json_encode($params, $flags) : (string)$params;
     }
 
     /**
@@ -87,12 +97,12 @@ trait Params
 
     /**
      * Init Object after find
-     * @return mixed
+     * @return void
      */
     public function afterFind()
     {
         $this->initParams();
-        return parent::afterFind();
+        parent::afterFind();
     }
 
     /**
@@ -100,27 +110,29 @@ trait Params
      * @param $key
      * @return bool
      */
-    public function hasParam($key)
+    public function hasParam($key): bool
     {
-        return isset($this->paramsArray[$key]) ? true : false;
+        return isset($this->paramsArray[$key]);
     }
 
     /**
      * Get Parameter by key
      * @param string $key
      * Key to retrieve. You can use dot access like "car.info.age"
-     * @return null|string
+     * @return mixed|null
      * Default value
      */
-    public function getParam($key, $default = null)
+    public function getParam($key, $default = null): mixed
     {
         $this->initParams();
         $array = $this->paramsArray;
-        if(isset($this->paramsArray[$key])) return $this->paramsArray[$key];
+        if (isset($this->paramsArray[$key])) {
+            return $this->paramsArray[$key];
+        }
         $keys = explode('.', $key);
-        foreach ($keys as $key) {
-            if (isset($array[$key])) {
-                $array = $array[$key];
+        foreach ($keys as $k) {
+            if (isset($array[$k])) {
+                $array = $array[$k];
             } else {
                 return $default;
             }
@@ -130,7 +142,7 @@ trait Params
 
     /**
      * Store a parameter by key
-     * @param string $key
+     * @param array|string $key
      * Key to store. You can use dot access like "car.info.age"
      * @param int|float|string|array $value
      * Value to store.
@@ -140,18 +152,18 @@ trait Params
      * Merge array value recursively
      * @return $this
      */
-    public function setParam($key, $value, $merge = false, $recursive = false)
+    public function setParam(array|string $key, mixed $value, bool $merge = false, bool $recursive = false)
     {
         $this->initParams();
         $target = &$this->paramsArray;
         if (is_string($key)) {
             // Iterate path
             $keys = explode('.', $key);
-            foreach ($keys as $key) {
-                if (!isset($target[$key]) || !is_array($target[$key])) {
-                    $target[$key] = [];
+            foreach ($keys as $k) {
+                if (!isset($target[$k]) || !is_array($target[$k])) {
+                    $target[$k] = [];
                 }
-                $target = &$target[$key];
+                $target = &$target[$k];
             }
             // Set value to path
         } elseif (is_array($key)) {
@@ -160,7 +172,7 @@ trait Params
                 $this->setParam($k, $v, $merge, $recursive);
             }
         }
-        if($merge && is_array($value)) {
+        if ($merge && is_array($value)) {
             $function = $recursive ? 'array_replace_recursive' : 'array_replace';
             $target = $function($target, $value);
         } else {
@@ -209,7 +221,7 @@ trait Params
      */
     public function unsetParam($key)
     {
-        if(isset($this->paramsArray[$key])) {
+        if (isset($this->paramsArray[$key])) {
             unset($this->paramsArray[$key]);
             $this->setAttribute('params', $this->getParamsAsJsonString());
         }
@@ -225,17 +237,17 @@ trait Params
      */
     public function unsetParams($keys = null)
     {
-        if(empty($keys)) {
+        if (empty($keys)) {
             $this->paramsArray = [];
         } else {
-            if(is_string($keys)) {
+            if (is_string($keys)) {
                 $keys = explode(',', $keys);
                 $keys = array_map(function ($v) {
                     return trim($v);
                 }, $keys);
             }
-            foreach($keys as $key) {
-                if(isset($this->paramsArray[$key])) {
+            foreach ($keys as $key) {
+                if (isset($this->paramsArray[$key])) {
                     unset($this->paramsArray[$key]);
                 }
             }
@@ -257,11 +269,11 @@ trait Params
         $this->initParams();
         $array = &$this->paramsArray;
         $keys = explode('.', $key);
-        foreach ($keys as $key) {
-            if (!isset($array[$key]) || !is_array($array[$key])) {
-                $array[$key] = [];
+        foreach ($keys as $k) {
+            if (!isset($array[$k]) || !is_array($array[$k])) {
+                $array[$k] = [];
             }
-            $array = &$array[$key];
+            $array = &$array[$k];
         }
         // Add value to path
         $array[] = $value;
