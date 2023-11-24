@@ -8,8 +8,6 @@
 
 namespace prowebcraft\yii2params;
 
-use function Webmozart\Assert\Tests\StaticAnalysis\string;
-
 trait Params
 {
 
@@ -40,9 +38,10 @@ trait Params
     function __set($name, $value)
     {
         if ($name === 'params') {
-            return $this->setParams($value);
+            $this->setParams($value);
+        } else {
+            parent::__set($name, $value);
         }
-        parent::__set($name, $value);
     }
 
     function __get($name)
@@ -221,10 +220,20 @@ trait Params
      */
     public function unsetParam($key)
     {
-        if (isset($this->paramsArray[$key])) {
-            unset($this->paramsArray[$key]);
-            $this->setAttribute('params', $this->getParamsAsJsonString());
+        $root = &$this->paramsArray;
+        if (strpos($key, '.') !== false) {
+            $keys = explode('.', $key);
+            for ($k = 0; $k < count($keys) - 1; $k++) {
+                $key = $keys[$k];
+                if (!isset($root[$key]) || !is_array($root[$key])) return $this;
+                $root = &$root[$key];
+            }
+            $key = $keys[$k];
         }
+        if (isset($root[$key])) {
+            unset($root[$key]);
+            $this->setAttribute('params', $this->getParamsAsJsonString());
+        };
         return $this;
     }
 
@@ -233,7 +242,7 @@ trait Params
      * @param $keys array|string
      * Null, Array or comma-separated string of keys to unset. If null - unset all keys.
      * @return $this
-     * @throws Exception
+     * @throws \Exception
      */
     public function unsetParams($keys = null)
     {
